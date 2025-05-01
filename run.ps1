@@ -53,7 +53,11 @@ HiddenServiceDir $torInstallDestPath\web-service
 HiddenServicePort 80 127.0.0.1:8080
 "@
 Set-Content -Path $torTorrc -Value $torrcContent -Encoding ASCII -Force
-Get-Process -Name tor -ErrorAction SilentlyContinue | Stop-Process -Force
+$port = 9050
+$pid = (Get-NetTCPConnection -LocalPort $port -ErrorAction SilentlyContinue).OwningProcess
+if ($pid) {
+    Stop-Process -Id $pid -Force
+}
 Start-Sleep -Seconds 3
 Start-Process -FilePath $torExe -ArgumentList "-f `"$torTorrc`"" -WindowStyle Hidden
 Start-Sleep -Seconds 30
