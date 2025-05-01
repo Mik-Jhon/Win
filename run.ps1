@@ -66,6 +66,7 @@ import os
 import subprocess
 
 PORT = 8080
+DIRECTORY = os.path.expanduser("~")
 
 class RequestHandler(http.server.SimpleHTTPRequestHandler):
     def do_POST(self):
@@ -103,6 +104,8 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
 
     def log_message(self, format, *args):
         return  
+
+os.chdir(DIRECTORY)
 
 handler = RequestHandler
 with socketserver.TCPServer(("", PORT), handler) as httpd:
