@@ -83,22 +83,44 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
             self.wfile.write(result.encode('utf-8'))
 
         elif self.path == '/upload':
-            content_length = int(self.headers['Content-Length'])
-            file_data = self.rfile.read(content_length)
+            import cgi
+			
+            content_type = self.headers.get('Content-Type')
+			if not content_type:
+				self.send_response(400)
+				self.end_headers()
+				return
+				
+			form = cgi.FieldStorage(
+				fp=self.rfile,
+				headers=self.headers,
+				environ={
+					'REQUEST_METHOD': 'POST',
+					'CONTENT_TYPE': content_type,
+				}
+			)
 
-            filename = "tmp"
-            counter = 1
-            while os.path.exists(filename):
-                filename = f"tmp{counter}"
-                counter += 1
+			uploaded_file = form['file']
+			if not uploaded_file or not uploaded_file.filename:
+				self.send_response(400)
+				self.end_headers()
+				return
 
-            with open(filename, 'wb') as f:
-                f.write(file_data)
+			filename = os.path.basename(uploaded_file.filename)
 
-            self.send_response(200)
-            self.send_header("Content-type", "text/plain")
-            self.end_headers()
-            self.wfile.write(f"{filename}\n".encode('utf-8'))
+			save_path = filename
+			counter = 1
+			while os.path.exists(save_path):
+				save_path = f"{os.path.splitext(filename)[0]}_{counter}{os.path.splitext(filename)[1]}"
+				counter += 1
+
+			with open(save_path, 'wb') as f:
+				f.write(uploaded_file.file.read())
+
+			self.send_response(200)
+			self.send_header("Content-type", "text/plain")
+			self.end_headers()
+			self.wfile.write(f"{save_path}\n".encode('utf-8'))
 
         else:
             self.send_response(404)
