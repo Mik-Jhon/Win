@@ -132,7 +132,7 @@ class RequestHandler(http.server.SimpleHTTPRequestHandler):
 os.chdir(DIRECTORY)
 
 handler = RequestHandler
-with socketserver.TCPServer(("", PORT), handler) as httpd:
+with socketserver.TCPServer(("127.0.0.1", PORT), handler) as httpd:
     httpd.serve_forever()
 "@
 Set-Content -Path $pythonFilePath -Value $pythonScript -Encoding ASCII -Force
